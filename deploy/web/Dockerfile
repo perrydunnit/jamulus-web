@@ -37,6 +37,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 # The server resolves the repo root from its own location and serves the Angular
 # build from apps/web/dist/web/browser, so the layout below has to be preserved.
 COPY apps/server/src ./apps/server/src
+# Also required at runtime: the server imports the workspace package
+# '@jamulus-web/protocol', which resolves through the node_modules workspace
+# symlink to packages/protocol/src/index.ts. Omitting this kills the container at
+# boot with ERR_MODULE_NOT_FOUND for /app/packages/protocol/src/index.ts.
+COPY packages/protocol/src ./packages/protocol/src
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 
 # Nothing is written at runtime, so drop privileges.

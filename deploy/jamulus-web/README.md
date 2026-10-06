@@ -18,13 +18,14 @@ So the stack below defines *two* routers on `jamulus.perry.party`:
 Port 80 is still what users type, and it still lands on your container — it just
 bounces to HTTPS first. That is the only way the microphone part works.
 
-## Why push to GitHub
+## Why the build comes from GitHub
 
 The compose file uses a **git URL as the build context**:
 
 ```yaml
 build:
-  context: https://github.com/<your-github-user>/jamulus-web.git#main
+  context: https://github.com/perrydunnit/jamulus-web.git#master
+  dockerfile: deploy/web/Dockerfile
 ```
 
 Docker BuildKit clones the repo itself during the build, which sidesteps a real
@@ -32,22 +33,18 @@ problem: `/opt/stacks` is root-owned and `perry` is not in the `docker` group,
 so copying source onto the host means `scp` + `sudo` on every change. With a git
 context you never touch the host filesystem — push, then Deploy.
 
-Requirements: **the repo must be public**, or BuildKit needs registry/git
-credentials for it. Simplest is public (the project is AGPL-3.0-or-later
-already). Push first:
+Requirements: **the repo must be public**, or BuildKit needs git credentials.
+`perrydunnit/jamulus-web` is public, so this works as written. Two details worth
+knowing:
 
-```bash
-git add .dockerignore deploy/
-git commit -m "Add container packaging for the web client"
-git push origin main
-```
+- The branch is **`master`**, not `main`. If you rename it, update the fragment
+  after `#` or drop the ref entirely to follow the default branch.
+- On Deckge's first build this clones and compiles Angular, so it takes a
+  couple of minutes.
 
-Replace `<your-github-user>` in `compose.yaml` with your account before use.
-
-**Alternative if you'd rather keep it private:** put the repo on the host instead
-(clone or copy into `/opt/stacks/jamulus-web/repo`) and change the context to
-`./repo`. That needs `ssh -t wurk` for `sudo`, because the stack directory is
-root-owned.
+**Alternative if you'd rather not depend on GitHub being up:** clone or copy the
+repo to `/opt/stacks/jamulus-web/repo` and change the context to `./repo`. That
+needs `ssh -t wurk` for `sudo`, because the stack directory is root-owned.
 
 ## Deploy in Dockge
 

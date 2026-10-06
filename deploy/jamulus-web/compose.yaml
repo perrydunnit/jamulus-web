@@ -11,13 +11,13 @@ services:
     container_name: jamulus-web
     # BuildKit fetches the source straight from git, so nothing has to be copied
     # onto the host and no sudo is needed (the stack dir is root-owned).
-    # Replace <your-github-user> with your account.
+    # Note the branch: this repo's default is `master`, not `main`.
     #
     # No `image:` on purpose: Dockge's Update runs `docker compose pull` first,
     # and naming a locally-built image makes that step fail with
     # "pull access denied".
     build:
-      context: https://github.com/<your-github-user>/jamulus-web.git#main
+      context: https://github.com/perrydunnit/jamulus-web.git#master
       dockerfile: deploy/web/Dockerfile
     restart: unless-stopped
     environment:
