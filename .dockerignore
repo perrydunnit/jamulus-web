@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+
+# Rebuilt inside the image; the host copies are platform-specific.
+**/dist
+
+.git
+.gitignore
+
+# Never bake local configuration (LAN addresses, keys) into an image.
+.env
+.env.*
+
+*.wav
+.vscode

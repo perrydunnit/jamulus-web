@@ -1,0 +1,64 @@
+---
+# SELF-CONTAINED variant: no Dockerfile on the host, nothing to scp.
+#
+# Paste this straight into the Dockge editor for the "jamulus" stack and press
+# Deploy. The whole image definition is inlined via dockerfile_inline, which
+# Docker Compose supports from v2.24.0 onwards.
+#
+# Check first -- in Dockge, open the "Console" page and run:
+#     docker compose version
+# If it is older than v2.24.0, use compose.yaml + Dockerfile (SSH route)
+# instead of this file.
+#
+# NOTE: the download URL below is hardcoded on purpose. Compose interpolates
+# dollar-brace variables inside YAML values, so Dockerfile-style ARG references
+# would be eaten before the build ever sees them.
+
+services:
+  jamulus:
+    container_name: jamulus
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM ubuntu:22.04
+        # Official Jamulus CI headless build. It is built on Ubuntu 22.04, and
+        # that is why the base image matches it.
+        RUN apt-get update \
+         && apt-get install -y --no-install-recommends ca-certificates curl \
+         && curl -fsSL -o /tmp/jamulus.deb \
+              "https://github.com/jamulussoftware/jamulus/releases/download/r4_0_0beta3/jamulus-headless_4.0.0beta3_ubuntu_amd64.deb" \
+         && apt-get install -y /tmp/jamulus.deb \
+         && rm -f /tmp/jamulus.deb \
+         && rm -rf /var/lib/apt/lists/*
+        EXPOSE 22124/udp
+        # The headless .deb installs /usr/bin/jamulus-headless, not Jamulus.
+        ENTRYPOINT ["jamulus-headless"]
+    image: jamulus-raw:4.0.0beta3
+    restart: always
+    ports:
+      - "22124:22124/udp"
+    environment:
+      TZ: America/Los_Angeles
+    # Unchanged from the working stack, and deliberately without --noraw:
+    # raw audio is enabled by default and --noraw would turn it off.
+    # This list overrides the image ENTRYPOINT, so the binary name matters here
+    # too. The headless package provides "jamulus-headless", not "Jamulus".
+    entrypoint:
+      - jamulus-headless
+      - --server
+      - --nogui
+      - --welcomemessage
+      - Welcome to the Jamulus rehearsal room
+      - --numchannels
+      - "16"
+
+# Notes
+# -----
+# * The Traefik labels from the old stack are dropped: nothing in this
+#   entrypoint serves HTTP (no -m/--htmlstatus), so the routers pointed at
+#   port 8096 had nothing to route. Add them back if something else needs the
+#   jamulus.perry.party hostname rule.
+# * If clients cannot reach the server after the upgrade, add --noipv6 to the
+#   entrypoint. 4.0 enables IPv6 by default and may bind an extra socket.
+# * For lower latency you may want Docker's realtime scheduler:
+#   https://docs.docker.com/config/containers/resource_constraints/#configure-the-realtime-scheduler

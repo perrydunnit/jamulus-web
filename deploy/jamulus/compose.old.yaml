@@ -1,0 +1,41 @@
+# Restore point - the compose.yaml that was live before the 4.0.0beta3 upgrade.
+#
+# Paste this back into the Dockge editor for the `jamulus` stack and Deploy to
+# roll back. It pins grundic/jamulus (Jamulus 3.9.0), which has no raw audio,
+# so audio from this bridge will stop working again.
+#
+# Recovered verbatim from the Dockge editor.
+
+version: "3.7"
+services:
+  jamulus:
+    container_name: jamulus
+    image: grundic/jamulus
+    restart: always
+    ports:
+      - 22124:22124/udp
+    environment:
+      TZ: America/Los_Angeles
+    entrypoint:
+      - Jamulus
+      - --server
+      - --nogui
+      - --welcomemessage
+      - Welcome to the Jamulus rehearsal room
+      - --numchannels
+      - "16"
+    labels:
+      # traefik
+      - traefik.enable=true
+      # HTTPS router
+      - traefik.http.routers.jamulus-secure.rule=Host(`jamulus.perry.party`)
+      - traefik.http.routers.jamulus-secure.entrypoints=websecure
+      - traefik.http.routers.jamulus-secure.tls.certresolver=letsencrypt
+      - traefik.http.routers.jamulus-secure.service=jamulus
+      # HTTP router
+      - traefik.http.routers.jamulus.rule=Host(`jamulus.perry.party`)
+      - traefik.http.routers.jamulus.entrypoints=web
+      - traefik.http.routers.jamulus.service=jamulus
+      # Shared service
+      - traefik.http.services.jamulus.loadbalancer.server.port=8096
+networks: {}

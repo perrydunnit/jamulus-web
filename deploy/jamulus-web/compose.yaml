@@ -1,0 +1,64 @@
+---
+# Dockge stack: the Jamulus web client (Fastify WS bridge + Angular app),
+# published at jamulus.perry.party by Traefik.
+#
+# Labels mirror the working pattern used by jellyfin/audiobookshelf on this host:
+# Traefik watches the external `media_default` network, routers live on the `web`
+# and `websecure` entrypoints, and certs come from the `letsencrypt` resolver.
+
+services:
+  jamulus-web:
+    container_name: jamulus-web
+    # BuildKit fetches the source straight from git, so nothing has to be copied
+    # onto the host and no sudo is needed (the stack dir is root-owned).
+    # Replace <your-github-user> with your account.
+    #
+    # No `image:` on purpose: Dockge's Update runs `docker compose pull` first,
+    # and naming a locally-built image makes that step fail with
+    # "pull access denied".
+    build:
+      context: https://github.com/<your-github-user>/jamulus-web.git#main
+      dockerfile: deploy/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      # The bridge's UDP leg to the Jamulus server. 192.168.0.39 is this host,
+      # and the Jamulus container publishes 22124/udp on it.
+      SERVER_ADDRESS: "192.168.0.39:22124"
+      HTTP_PORT: "8080"
+      CLIENT_NAME: "Web Client"
+      TZ: America/Los_Angeles
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    labels:
+      - traefik.enable=true
+      # --- HTTPS router: the one browsers must use. ---------------------------
+      # Microphone capture (getUserMedia) only exists in a secure context, so
+      # the app is unusable over plain HTTP. Everything below assumes HTTPS.
+      - traefik.http.routers.jamulus-web-secure.rule=Host(`jamulus.perry.party`)
+      - traefik.http.routers.jamulus-web-secure.entrypoints=websecure
+      - traefik.http.routers.jamulus-web-secure.tls.certresolver=letsencrypt
+      - traefik.http.routers.jamulus-web-secure.service=jamulus-web
+      # --- Port 80: bounce to HTTPS instead of serving the app insecurely ----
+      - traefik.http.routers.jamulus-web.rule=Host(`jamulus.perry.party`)
+      - traefik.http.routers.jamulus-web.entrypoints=web
+      - traefik.http.routers.jamulus-web.middlewares=jamulus-web-redirect
+      - traefik.http.routers.jamulus-web.service=jamulus-web
+      - traefik.http.middlewares.jamulus-web-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.jamulus-web-redirect.redirectscheme.permanent=true
+      # --- Where Traefik finds the container ---------------------------------
+      # Traefik proxies the /ws upgrade automatically; nothing extra needed.
+      - traefik.http.services.jamulus-web.loadbalancer.server.port=8080
+    networks:
+      - media_default
+
+networks:
+  media_default:
+    external: true

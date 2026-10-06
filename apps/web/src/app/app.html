@@ -1,0 +1,173 @@
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <div>
+        <h1>Jamulus Web</h1>
+        <p class="brand__sub">Rehearse together from the browser</p>
+      </div>
+    </div>
+
+    <div class="topbar__right">
+      <span class="pill" [class.pill--live]="isConnected()" [class.pill--busy]="bridge.state() === 'connecting'">
+        <span class="pill__dot" aria-hidden="true"></span>
+        {{ statusLabel() }}
+      </span>
+      <button type="button" class="ghost" (click)="toggleSettings()" [attr.aria-expanded]="showSettings()">
+        Settings
+      </button>
+    </div>
+  </header>
+
+  @if (bridge.error(); as error) {
+    <div class="banner banner--error" role="alert">
+      <strong>Could not stay connected.</strong>
+      <span>{{ error }}</span>
+      @if (!bridge.rawAudio() && bridge.state() === 'closed') {
+        <span class="banner__hint">
+          This Jamulus server does not offer raw (uncompressed) audio. That mode is new
+          in Jamulus 3.12.5 (the upcoming 4.0.0); run that version and do not start the
+          server with <code>--noraw</code>.
+        </span>
+      }
+    </div>
+  }
+
+  @if (micError(); as error) {
+    <div class="banner banner--error" role="alert">
+      <strong>Microphone not available.</strong>
+      <span>{{ error }}</span>
+      <span class="banner__hint">Microphone access needs HTTPS or localhost.</span>
+    </div>
+  }
+
+  @if (showSettings()) {
+    <section class="card settings">
+      <h2>Settings</h2>
+      <label class="field">
+        <span class="field__label">Display name</span>
+        <input
+          type="text"
+          [value]="name()"
+          (input)="onNameInput($event)"
+          [disabled]="isConnected()"
+          maxlength="32"
+          placeholder="Your name in the session"
+        />
+      </label>
+      <label class="field">
+        <span class="field__label">Output volume — {{ levelPercent(volume()) }}%</span>
+        <input type="range" min="0" max="100" [value]="volume() * 100" (input)="onVolumeInput($event)" />
+      </label>
+    </section>
+  }
+
+  <main class="grid">
+    <section class="card session">
+      <h2>Session</h2>
+      <dl class="facts">
+        <div>
+          <dt>Server</dt>
+          <dd>{{ bridge.server() || 'from .env' }}</dd>
+        </div>
+        <div>
+          <dt>Your channel</dt>
+          <dd>{{ bridge.channelId() ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt>Ping</dt>
+          <dd>{{ bridge.metrics().pingMs }} ms</dd>
+        </div>
+        <div>
+          <dt>Audio mode</dt>
+          <dd>{{ bridge.rawAudio() ? 'Raw PCM' : 'Not negotiated' }}</dd>
+        </div>
+      </dl>
+
+      <button
+        type="button"
+        class="primary"
+        [class.primary--danger]="isConnected() || bridge.state() === 'connecting'"
+        [disabled]="busy()"
+        (click)="toggleConnection()"
+      >
+        {{ isConnected() || bridge.state() === 'connecting' ? 'Disconnect' : 'Join session' }}
+      </button>
+      <p class="hint">Your browser will ask for microphone permission.</p>
+    </section>
+
+    <section class="card talk">
+      <h2>Push to talk</h2>
+
+      <button
+        type="button"
+        class="ptt"
+        [class.ptt--active]="transmitting()"
+        [disabled]="!isConnected()"
+        (mousedown)="startTransmitting()"
+        (mouseup)="stopTransmitting()"
+        (mouseleave)="stopTransmitting()"
+        (touchstart)="startTransmitting(); $event.preventDefault()"
+        (touchend)="stopTransmitting(); $event.preventDefault()"
+        (keydown.enter)="startTransmitting()"
+        (keyup.enter)="stopTransmitting()"
+      >
+        <span class="ptt__label">{{ transmitting() ? 'On air' : 'Hold to talk' }}</span>
+        <span class="ptt__key">or hold Space</span>
+      </button>
+
+      <div class="meter" [class.meter--active]="transmitting()">
+        <div class="meter__head">
+          <span>Input level</span>
+          <span>{{ levelPercent(micLevel()) }}%</span>
+        </div>
+        <div class="meter__track"><div class="meter__fill" [style.width.%]="levelPercent(micLevel())"></div></div>
+      </div>
+
+      <div class="meter meter--output">
+        <div class="meter__head">
+          <span>Receiving</span>
+          <span>{{ levelPercent(bridge.metrics().downlinkLevel) }}%</span>
+        </div>
+        <div class="meter__track">
+          <div class="meter__fill" [style.width.%]="levelPercent(bridge.metrics().downlinkLevel)"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card musicians">
+      <h2>Musicians <span class="count">{{ otherUsers().length }}</span></h2>
+      @if (otherUsers().length === 0) {
+        <p class="empty">No one else is in the room yet.</p>
+      } @else {
+        <ul class="people">
+          @for (user of otherUsers(); track user.channelId) {
+            <li>
+              <span class="avatar" aria-hidden="true">{{ user.name.charAt(0) || '?' }}</span>
+              <span class="people__name">{{ user.name || 'Unnamed' }}</span>
+              @if (user.city) {
+                <span class="people__city">{{ user.city }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </main>
+
+  @if (bridge.chat().length > 0) {
+    <section class="card chat">
+      <h2>Session messages</h2>
+      <ul>
+        @for (line of bridge.chat(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    </section>
+  }
+
+  <footer class="footer">
+    <span>Buffer {{ bridge.metrics().uplinkBufferSamples }} samples</span>
+    <span>Jitter target {{ bridge.metrics().serverJitterBlocks }} blocks</span>
+  </footer>
+</div>

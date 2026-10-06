@@ -1,0 +1,28 @@
+{
+  "name": "jamulus-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Web client for a Jamulus server: Node UDP bridge + Angular/SCSS frontend.",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "spike": "node scripts/spike.ts",
+    "dev:server": "node --watch apps/server/src/index.ts",
+    "dev:web": "npm run start --workspace @jamulus-web/web",
+    "start": "npm run start --workspace @jamulus-web/server"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

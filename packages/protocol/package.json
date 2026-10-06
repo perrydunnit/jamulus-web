@@ -1,0 +1,14 @@
+{
+  "name": "@jamulus-web/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Clean-room TypeScript implementation of the Jamulus UDP protocol (framing, CRC, message codecs).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

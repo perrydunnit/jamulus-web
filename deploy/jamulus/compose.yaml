@@ -1,0 +1,46 @@
+---
+# Drop-in replacement for the existing Dockge stack.
+#
+# Difference from the old stack: instead of `image: grundic/jamulus:latest`
+# (Jamulus 3.9.0, no raw audio) this builds a local image from the Dockerfile
+# next to this file, pinned to Jamulus 4.0.0beta3.
+#
+# IMPORTANT: the entrypoint is deliberately unchanged, and in particular it
+# does NOT pass --noraw. Raw audio is on by default, so don't add it.
+
+services:
+  jamulus:
+    container_name: jamulus
+    build:
+      # In Dockge, the stack directory is the build context, so keep the
+      # Dockerfile in the same folder as this compose file.
+      context: .
+      dockerfile: Dockerfile
+    # Give the built image a stable name so you can also build it by hand on
+    # the host (docker build -t jamulus-raw:4.0.0beta3 .) and skip the build.
+    image: jamulus-raw:4.0.0beta3
+    restart: always
+    ports:
+      - "22124:22124/udp"
+    environment:
+      TZ: America/Los_Angeles
+    # This list overrides the image ENTRYPOINT. The headless package provides
+    # "jamulus-headless" (upstream linux/debian/jamulus-headless.install), not
+    # "Jamulus", and it must not be given --noraw.
+    entrypoint:
+      - jamulus-headless
+      - --server
+      - --nogui
+      - --welcomemessage
+      - Welcome to the Jamulus rehearsal room
+      - --numchannels
+      - "16"
+
+# Notes
+# -----
+# * The old stack also carried Traefik labels pointing at port 8096. Nothing in
+#   this entrypoint serves HTTP (no -m/--htmlstatus), so those labels only add
+#   an unused router. They are intentionally dropped here. Add them back if
+#   something else depends on that hostname rule.
+# * For lower latency you may want Docker's realtime scheduler:
+#   https://docs.docker.com/config/containers/resource_constraints/#configure-the-realtime-scheduler
