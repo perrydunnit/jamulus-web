@@ -54,6 +54,22 @@ needs `ssh -t wurk` for `sudo`, because the stack directory is root-owned.
    couple of minutes; later deploys reuse the cached dependency layer.
 4. Watch the log for `Jamulus bridge ready — target 192.168.0.39:22124`.
 
+## Updating after a push
+
+Because the image is built from git, `docker compose up -d` on its own will
+**not** pick up your changes: the image already exists locally, and Compose only
+builds when an image is missing. Force a rebuild:
+
+```bash
+ssh -t wurk 'sudo docker compose -f /opt/stacks/jamulus-web/compose.yaml up -d --build'
+```
+
+The `-t` matters: without a TTY, `sudo` refuses to read the password. The
+`pull_policy: build` and `image:` keys in compose.yaml are there so Compose
+builds rather than trying to pull a local-only image — that also makes Dockge's
+Update button behave. After a push the sequence is: push, rebuild, check
+`/health`.
+
 ## Verify
 
 DNS and port forwarding need nothing new: `jamulus.perry.party` already resolves

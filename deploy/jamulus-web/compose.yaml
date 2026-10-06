@@ -13,9 +13,13 @@ services:
     # onto the host and no sudo is needed (the stack dir is root-owned).
     # Note the branch: this repo's default is `master`, not `main`.
     #
-    # No `image:` on purpose: Dockge's Update runs `docker compose pull` first,
-    # and naming a locally-built image makes that step fail with
-    # "pull access denied".
+    # pull_policy is the important bit here. Without it, Compose tries to PULL an
+    # image that only ever exists locally ("pull access denied"), and a plain
+    # `up -d` will NOT rebuild an image that already exists -- which is exactly
+    # how a stale build survives a git push. With `build`, Compose builds
+    # instead of pulling, so Dockge's Update button does the right thing.
+    image: jamulus-web:local
+    pull_policy: build
     build:
       context: https://github.com/perrydunnit/jamulus-web.git#master
       dockerfile: deploy/web/Dockerfile
